@@ -86,7 +86,11 @@ public class SheetViewController: UIViewController {
     }
     
     public static var blurEffect: UIBlurEffect = {
-        return UIBlurEffect(style: .prominent)
+        if #available(iOS 11.0, *) {
+            return UIBlurEffect(style: .prominent)
+        } else {
+            return UIBlurEffect(style: .dark)
+        }
     }()
     
     public var blurEffect = SheetViewController.blurEffect {
@@ -199,7 +203,11 @@ public class SheetViewController: UIViewController {
     public override func viewDidLoad() {
         super.viewDidLoad()
         
-        self.additionalSafeAreaInsets = UIEdgeInsets(top: -self.options.pullBarHeight, left: 0, bottom: 0, right: 0)
+        if #available(iOS 11.0, *) {
+            self.additionalSafeAreaInsets = UIEdgeInsets(top: -self.options.pullBarHeight, left: 0, bottom: 0, right: 0)
+        } else {
+            // TODO: handle for lower OS
+        }
         
         self.view.backgroundColor = UIColor.clear
         self.addPanGestureRecognizer()
@@ -335,7 +343,14 @@ public class SheetViewController: UIViewController {
             if (self.options.useFullScreenMode) {
                 top = 0
             } else {
-                top = max(12, UIApplication.shared.windows.first(where:  { $0.isKeyWindow })?.safeAreaInsets.top ?? 12)
+                let topSafeArea: CGFloat
+                if #available(iOS 11.0, *) {
+                    topSafeArea = UIApplication.shared.windows.filter {$0.isKeyWindow}.first?.safeAreaInsets.top ?? 0
+                } else {
+                    // TODO: handle for lower OS
+                    topSafeArea = 12
+                }
+                top = max(12, topSafeArea)
             }
             $0.bottom.pinToSuperview()
             $0.top.pinToSuperview(inset: top, relation: .greaterThanOrEqual).priority = UILayoutPriority(999)
@@ -518,7 +533,14 @@ public class SheetViewController: UIViewController {
         if self.options.useFullScreenMode {
             fullscreenHeight = self.view.bounds.height - self.minimumSpaceAbovePullBar
         } else {
-            fullscreenHeight = self.view.bounds.height - self.view.safeAreaInsets.top - self.minimumSpaceAbovePullBar
+            let top: CGFloat
+            if #available(iOS 11.0, *) {
+                top = self.view.safeAreaInsets.top
+            } else {
+                top = 0
+            }
+            
+            fullscreenHeight = self.view.bounds.height - top - self.minimumSpaceAbovePullBar
         }
         switch (size) {
             case .fixed(let height):

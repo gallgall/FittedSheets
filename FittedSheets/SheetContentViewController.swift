@@ -123,8 +123,19 @@ public class SheetContentViewController: UIViewController {
     }
     
     private func updateCornerRadius() {
-        self.contentWrapperView.layer.cornerRadius = self.treatPullBarAsClear ? 0 : self.cornerRadius
-        self.childContainerView.layer.cornerRadius = self.treatPullBarAsClear ? self.cornerRadius : 0
+        var radius = self.treatPullBarAsClear ? 0 : self.cornerRadius
+        if #available(iOS 11.0, *) {
+            self.contentWrapperView.layer.cornerRadius = radius
+        } else {
+            self.roundCorners(self.contentWrapperView, corners: [.topRight, .topLeft], radius: radius)
+        }
+        
+        radius = self.treatPullBarAsClear ? self.cornerRadius : 0
+        if #available(iOS 11.0, *) {
+            self.childContainerView.layer.cornerRadius = radius
+        } else {
+            self.roundCorners(self.childContainerView, corners: [.topRight, .topLeft], radius: radius)
+        }
     }
     
     private func setupOverflowView() {
@@ -198,13 +209,23 @@ public class SheetContentViewController: UIViewController {
                 view.top.pinToSuperview()
         }
         if self.options.shouldExtendBackground, self.options.pullBarHeight > 0 {
-            self.childViewController.additionalSafeAreaInsets = UIEdgeInsets(top: self.options.pullBarHeight, left: 0, bottom: 0, right: 0)
+            if #available(iOS 11.0, *) {
+                self.childViewController.additionalSafeAreaInsets = UIEdgeInsets(top: self.options.pullBarHeight, left: 0, bottom: 0, right: 0)
+            } else {
+                // TODO: handle for lower OS
+            }
         }
         
         self.childViewController.didMove(toParent: self)
         
         self.childContainerView.layer.masksToBounds = true
-        self.childContainerView.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMinXMinYCorner]
+        
+        if #available(iOS 11.0, *) {
+            self.childContainerView.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMinXMinYCorner]
+        } else {
+            let radius = self.treatPullBarAsClear ? self.cornerRadius : 0
+            roundCorners(self.childContainerView, corners: [.topRight, .topLeft], radius: radius)
+        }
     }
 
     private func setupContentView() {
@@ -220,7 +241,13 @@ public class SheetContentViewController: UIViewController {
         }
         
         self.contentWrapperView.layer.masksToBounds = true
-        self.contentWrapperView.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMinXMinYCorner]
+        
+        if #available(iOS 11.0, *) {
+            self.contentWrapperView.layer.maskedCorners = [.layerMaxXMinYCorner, .layerMinXMinYCorner]
+        } else {
+            let radius = self.treatPullBarAsClear ? 0 : self.cornerRadius
+            roundCorners(self.contentWrapperView, corners: [.topRight, .topLeft], radius: radius)
+        }
                 
         self.contentView.addSubview(overflowView) {
             $0.edges(.left, .right).pinToSuperview()
@@ -280,6 +307,15 @@ public class SheetContentViewController: UIViewController {
         
         let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(pullBarTapped))
         pullBarView.addGestureRecognizer(tapGestureRecognizer)
+    }
+    
+    private func roundCorners(_ view: UIView, corners: UIRectCorner, radius: CGFloat) {
+        let path = UIBezierPath(roundedRect: view.bounds,
+                                byRoundingCorners: corners,
+                                cornerRadii: CGSize(width: radius, height: radius))
+        let mask = CAShapeLayer()
+        mask.path = path.cgPath
+        view.layer.mask = mask
     }
     
     @objc func pullBarTapped(_ gesture: UITapGestureRecognizer) {
